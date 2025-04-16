@@ -1,4 +1,3 @@
-# Bloco de configuração do Terraform
 terraform {
   required_providers {
     aws = {
@@ -8,40 +7,30 @@ terraform {
   }
 }
 
-# Bloco de configuração do provedor AWS
 provider "aws" {
-  region = "us-east-1" # Ou sua região
+  region = var.aws_region
 }
 
-# Data source para obter informações sobre a região AWS atual configurada
+# Data source para obter a região atual dinamicamente (usado no output da Hosted UI)
 data "aws_region" "current" {}
 
-# Recurso aws_cognito_user_pool
+# ----- Cognito User Pool -----
 resource "aws_cognito_user_pool" "main" {
-  name                     = "vehicle-resale-user-pool"
+  name = "${var.user_pool_base_name}-${var.environment}"
+
+  # Atributos de login e verificação
   username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
 
-  # Schema para atributos padrão
+  # Schema: Apenas o atributo 'email' é definido e requerido pelo Cognito
   schema {
     attribute_data_type = "String"
     name                = "email"
     required            = true
     mutable             = false
   }
-  schema {
-    attribute_data_type = "String"
-    name                = "given_name"
-    required            = true
-    mutable             = true
-  }
-  schema {
-    attribute_data_type = "String"
-    name                = "family_name"
-    required            = true
-    mutable             = true
-  }
 
+  # Política de Senha
   password_policy {
     minimum_length                   = 8
     require_lowercase                = true
@@ -50,64 +39,62 @@ resource "aws_cognito_user_pool" "main" {
     require_uppercase                = true
     temporary_password_validity_days = 7
   }
+
   mfa_configuration = "OFF"
+
+  # Configuração de Recuperação de Conta (via email verificado)
   account_recovery_setting {
     recovery_mechanism {
       name     = "verified_email"
       priority = 1
     }
   }
-  tags = {
-    Environment = "development"
-    Project     = "VehicleResale"
-    ManagedBy   = "Terraform"
-  }
+
+  # Tags do projeto e ambiente
+  tags = merge(
+    var.project_tags,
+    {
+      Environment = var.environment
+      Name        = "${var.user_pool_base_name}-${var.environment}"
+    }
+  )
 }
 
-# Recurso que define o domínio para o User Pool (necessário para a Hosted UI)
+# ----- Domínio para Hosted UI -----
 resource "aws_cognito_user_pool_domain" "main" {
-  domain = "fiap-vehicle-resale"
-  # ID do User Pool ao qual este domínio pertence
+  # Usa variáveis para construir o prefixo do domínio
+  domain       = "${var.user_pool_domain_prefix}-${var.environment}"
   user_pool_id = aws_cognito_user_pool.main.id
 }
 
-# Recurso que define um Cliente de Aplicativo para o User Pool
+# ----- App Client -----
 resource "aws_cognito_user_pool_client" "app_client" {
-  name            = "vehicle-resale-app-client"
+  # Usa variáveis para construir o nome
+  name = "${var.app_client_name}-${var.environment}"
+
   user_pool_id    = aws_cognito_user_pool.main.id
   generate_secret = false
+
+  # Habilita o próprio User Pool como provedor de identidade
   supported_identity_providers = ["COGNITO"]
 
-  # Habilita AMBOS os fluxos: Authorization Code e Implicit
-  allowed_oauth_flows = ["code", "implicit"]
+  allowed_oauth_flows                  = var.app_client_oauth_flows
+  allowed_oauth_scopes                 = var.app_client_oauth_scopes
+  callback_urls                        = var.app_client_callback_urls
+  logout_urls                          = var.app_client_logout_urls
+  allowed_oauth_flows_user_pool_client = true # Habilita o uso dos fluxos OAuth
 
-  # Fluxos de autenticação explícitos
-  explicit_auth_flows           = ["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
+  # Fluxos de autenticação explícitos permitidos (SRP é mais seguro)
+  explicit_auth_flows = ["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
+
+  # Medida de segurança para não revelar se usuário existe em fluxos não autenticados
   prevent_user_existence_errors = "ENABLED"
 
-  # Escopos OAuth
-  allowed_oauth_scopes = ["openid", "email", "profile"]
+  access_token_validity = 120
+  id_token_validity     = 120
 
-  # URLs de Callback
-  callback_urls = ["https://jwt.io"]
-
-  # URLs de Logout
-  logout_urls = ["https://jwt.io/logout"]
-
-  # Habilita os fluxos OAuth
-  allowed_oauth_flows_user_pool_client = true
-}
-
-# Bloco de Saída
-output "cognito_user_pool_id" {
-  description = "O ID do Cognito User Pool criado"
-  value       = aws_cognito_user_pool.main.id
-}
-output "cognito_user_pool_client_id" {
-  description = "O ID do Cognito User Pool Client criado"
-  value       = aws_cognito_user_pool_client.app_client.id
-}
-output "cognito_hosted_ui_domain" {
-  description = "O domínio completo configurado para a Hosted UI do Cognito"
-  value       = "https://${aws_cognito_user_pool_domain.main.domain}.auth.${data.aws_region.current.name}.amazoncognito.com"
+  token_validity_units {
+    access_token = "minutes"
+    id_token     = "minutes"
+  }
 }
