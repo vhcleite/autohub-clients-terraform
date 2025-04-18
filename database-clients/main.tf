@@ -1,3 +1,5 @@
+# terraform/database-clients/main.tf
+
 terraform {
   required_providers {
     aws = {
@@ -11,10 +13,11 @@ provider "aws" {
   region = var.aws_region
 }
 
+# --- Tabela DynamoDB para Clientes ---
 resource "aws_dynamodb_table" "user_table" {
-  name = "${var.dynamodb_table_name}-${var.environment}"
+  name         = "${var.dynamodb_table_name}-${var.environment}"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key = "id"
+  hash_key     = "id"
   attribute {
     name = "id"
     type = "S"
@@ -28,6 +31,7 @@ resource "aws_dynamodb_table" "user_table" {
     name            = "email-index"
     hash_key        = "email"
     projection_type = "ALL"
+
   }
 
   point_in_time_recovery {
