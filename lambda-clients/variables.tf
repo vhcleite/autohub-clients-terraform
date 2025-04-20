@@ -54,6 +54,7 @@ variable "terraform_state_bucket" {
   type        = string
   default     = "vhc-terraform-state-autohub-clients-v1"
 }
+
 variable "terraform_state_lock_table" {
   description = "dynamo db table com o lock do tf state"
   type        = string
