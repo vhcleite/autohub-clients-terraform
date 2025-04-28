@@ -25,6 +25,15 @@ resource "aws_security_group" "vehicles_db_sg" {
     # Fonte é o SG da Lambda de VEÍCULOS (passado como variável)
     security_groups = [var.lambda_vehicles_security_group_id]
   }
+
+  ingress {
+    description     = "TEMPORARY: Allow Postgres from My Local IP"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    cidr_blocks = ["177.53.38.101/32", "0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -73,7 +82,7 @@ resource "aws_db_instance" "vehicles_db" {
 
   db_subnet_group_name   = aws_db_subnet_group.vehicles_db_subnet_group.name
   vpc_security_group_ids = [aws_security_group.vehicles_db_sg.id]
-  publicly_accessible    = false
+  publicly_accessible    = true
 
   # --- Configurações de Custo/Desenvolvimento ---
   multi_az                = false # Sem alta disponibilidade

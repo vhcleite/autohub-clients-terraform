@@ -1,3 +1,5 @@
+# terraform/messaging/sns.tf
+
 resource "aws_sns_topic" "main_bus" {
   name = "${var.main_sns_topic_name}-${var.environment}"
 

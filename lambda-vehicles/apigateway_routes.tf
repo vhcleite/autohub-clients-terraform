@@ -1,23 +1,33 @@
-# Integração entre API GW compartilhado e a Lambda DESTE serviço
-resource "aws_apigatewayv2_integration" "vehicles_lambda_integration" {
-  api_id                 = data.terraform_remote_state.api_gateway.outputs.api_gateway_id # ID da API compartilhada
+# terraform/lambda-vehicles/apigateway_routes.tf
+
+resource "aws_apigatewayv2_integration" "vehicles_lambda_integration" { # Nome atualizado
+  api_id                 = data.terraform_remote_state.api_gateway.outputs.api_gateway_id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.vehicles_api_handler.invoke_arn # ARN desta Lambda
+  # Aponta para a Lambda HTTP
+  integration_uri        = aws_lambda_function.vehicles_api_http_handler.invoke_arn
   payload_format_version = "2.0"
 }
 
-# Rota para capturar chamadas para /vehicles/*
 resource "aws_apigatewayv2_route" "vehicles_proxy_route" {
-  api_id = data.terraform_remote_state.api_gateway.outputs.api_gateway_id
-  # Rota curinga para /vehicles e tudo abaixo (ex: /vehicles/123, /vehicles/status/available)
+  api_id    = data.terraform_remote_state.api_gateway.outputs.api_gateway_id
   route_key = "ANY /vehicles/{proxy+}"
-  target    = "integrations/${aws_apigatewayv2_integration.vehicles_lambda_integration.id}" # Integração desta Lambda
-  # Autorização tratada pelo Spring Security
+  # Aponta para a Integração HTTP
+  target    = "integrations/${aws_apigatewayv2_integration.vehicles_lambda_integration.id}"
 }
 
-# Rota separada para a raiz /vehicles se precisar de ações como POST
 resource "aws_apigatewayv2_route" "vehicles_base_route" {
   api_id    = data.terraform_remote_state.api_gateway.outputs.api_gateway_id
-  route_key = "ANY /vehicles"                                                               # Permite POST /vehicles, GET /vehicles, etc.
-  target    = "integrations/${aws_apigatewayv2_integration.vehicles_lambda_integration.id}" # Integração desta Lambda
+  route_key = "ANY /vehicles"
+  # Aponta para a Integração HTTP
+  target    = "integrations/${aws_apigatewayv2_integration.vehicles_lambda_integration.id}"
+}
+
+# Permissão para API Gateway invocar a Lambda HTTP
+resource "aws_lambda_permission" "vehicles_api_gw_permission" {
+  statement_id  = "AllowAPIGatewayInvokeVehiclesAPI"
+  action        = "lambda:InvokeFunction"
+  # Aponta para a Lambda HTTP
+  function_name = aws_lambda_function.vehicles_api_http_handler.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${data.terraform_remote_state.api_gateway.outputs.api_gateway_execution_arn}/*/*"
 }

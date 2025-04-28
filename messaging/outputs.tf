@@ -37,7 +37,7 @@ output "event_dlqs_arns" {
   value       = { for k, dlq in aws_sqs_queue.event_dlqs : k => dlq.arn }
 }
 
-# Exemplos de outputs individuais (se preferir em vez dos mapas)
-# output "vehicles_sale_created_queue_arn" { value = aws_sqs_queue.event_queues["vehicles_on_sale_created"].arn }
-# output "vehicles_sale_created_queue_url" { value = aws_sqs_queue.event_queues["vehicles_on_sale_created"].id }
-# ... etc para outras filas ...
+output "vehicles_sale_created_queue_name" {
+  description = "Nome da fila SQS para a Vehicles API processar SaleCreated"
+  value = element(split(":", aws_sqs_queue.event_queues["vehicles_on_sale_created"].arn), 5)
+}

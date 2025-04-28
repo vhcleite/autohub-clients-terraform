@@ -1,72 +1,93 @@
-resource "aws_cloudwatch_log_group" "vehicles_lambda_log_group" {
-  name              = "/aws/lambda/${var.lambda_function_name}-${var.environment}"
+# terraform/lambda-vehicles/lambda.tf
+
+resource "aws_cloudwatch_log_group" "vehicles_http_lambda_log_group" {
+  name              = "/aws/lambda/${var.lambda_function_name_http}-${var.environment}" # Nome atualizado
   retention_in_days = 1
-  tags              = merge(var.project_tags, { Name = "/aws/lambda/${var.lambda_function_name}-${var.environment}" })
+  tags              = merge(var.project_tags, { Name = "/aws/lambda/${var.lambda_function_name_http}-${var.environment}" })
 }
 
-resource "aws_lambda_function" "vehicles_api_handler" {
-  function_name = "${var.lambda_function_name}-${var.environment}"
-  role          = aws_iam_role.vehicles_lambda_exec_role.arn # Role criada em iam.tf
+resource "aws_lambda_function" "vehicles_api_http_handler" {
+  function_name = "${var.lambda_function_name_http}-${var.environment}" # Nome atualizado
+  role          = aws_iam_role.vehicles_http_exec_role.arn # Role HTTP
   package_type  = "Zip"
-
-  # Código fonte vindo do S3
+  # Código fonte (mesmo JAR)
   s3_bucket         = data.terraform_remote_state.s3_artifacts.outputs.lambda_deploy_bucket_id
   s3_key            = aws_s3_object.vehicles_lambda_jar_upload.key
   s3_object_version = aws_s3_object.vehicles_lambda_jar_upload.version_id
-
-  # Configurações do Runtime Java
-  handler       = var.lambda_handler
+  # Handler HTTP
+  handler       = var.lambda_handler_http
   runtime       = var.lambda_runtime
-  memory_size   = var.lambda_memory_size
-  timeout       = var.lambda_timeout
+  memory_size   = var.lambda_memory_size_http # Memória HTTP
+  timeout       = var.lambda_timeout_http     # Timeout HTTP
   architectures = ["arm64"]
-
-  # Configuração de Rede para acessar RDS privado
-  vpc_config {
-    subnet_ids         = data.terraform_remote_state.rds_vehicles.outputs.db_subnet_group_subnet_ids
-    security_group_ids = [aws_security_group.vehicles_lambda_sg.id]
-  }
+  # vpc_config { ... } # Se necessário para acesso ao RDS
 
   environment {
     variables = {
-      # Dados de conexão RDS lidos do remote state 'rds-vehicles'
       DB_HOST                = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_instance_endpoint
       DB_PORT                = tostring(data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_instance_port)
       DB_NAME                = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_instance_name
       DB_USER                = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_instance_username
       DB_PASSWORD_SECRET_ARN = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_password_secret_arn
-      # Issuer do Cognito (para Spring Security)
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI = data.terraform_remote_state.cognito.outputs.cognito_user_pool_issuer
-      # Perfil Spring
-      SPRING_PROFILES_ACTIVE = var.environment
-
-      # (Opcional) ARNs/URLs de SQS/SNS lidos do 'messaging' se necessário
-      # EXAMPLE_QUEUE_URL = data.terraform_remote_state.messaging.outputs.some_queue_url
-      # EVENT_TOPIC_ARN   = data.terraform_remote_state.messaging.outputs.main_event_topic_arn
+      # Perfil Spring para HTTP
+      SPRING_PROFILES_ACTIVE = "prod,http" # Ativa perfil 'prod' e 'http'
+      SNS_TOPIC_MAIN_EVENT_BUS_ARN = data.terraform_remote_state.messaging.outputs.main_event_topic_arn
     }
   }
   publish = true
-
   depends_on = [
-    aws_cloudwatch_log_group.vehicles_lambda_log_group,
-    aws_iam_role_policy_attachment.vehicles_lambda_policy_attach,
-    aws_iam_role_policy_attachment.vehicles_lambda_logs_attach,
-    aws_iam_role_policy_attachment.vehicles_lambda_vpc_attach
+    aws_cloudwatch_log_group.vehicles_http_lambda_log_group,
+    aws_iam_role_policy_attachment.vehicles_http_policy_attach,
+    aws_iam_role_policy_attachment.vehicles_http_logs_attach,
   ]
-  tags = merge(
-    var.project_tags,
-    { Name = "${var.lambda_function_name}-${var.environment}" }
-  )
+  tags = merge(var.project_tags, { Name = "${var.lambda_function_name_http}-${var.environment}" })
 }
 
-# Permissão para API Gateway invocar esta Lambda
-resource "aws_lambda_permission" "vehicles_api_gw_permission" {
-  statement_id  = "AllowAPIGatewayInvokeVehiclesAPI"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.vehicles_api_handler.function_name
-  principal     = "apigateway.amazonaws.com"
-  # Source ARN usa o ARN de execução da API GW compartilhada (lido do remote state 'api_gateway')
-  # O /*/* permite qualquer método e path vindo dessa API GW específica.
-  # Restrinja mais se quiser (ex: "${...}/*/GET/vehicles/*")
-  source_arn = "${data.terraform_remote_state.api_gateway.outputs.api_gateway_execution_arn}/*/*"
+# --- Definição da Lambda SQS ---
+resource "aws_cloudwatch_log_group" "vehicles_sqs_lambda_log_group" {
+  name              = "/aws/lambda/${var.lambda_function_name_sqs}-${var.environment}" # Nome novo
+  retention_in_days = 1
+  tags              = merge(var.project_tags, { Name = "/aws/lambda/${var.lambda_function_name_sqs}-${var.environment}" })
+}
+
+resource "aws_lambda_function" "vehicles_api_sqs_handler" {
+  function_name = "${var.lambda_function_name_sqs}-${var.environment}" # Nome novo
+  role          = aws_iam_role.vehicles_sqs_exec_role.arn # Role SQS
+  package_type  = "Zip"
+  # Código fonte (mesmo JAR)
+  s3_bucket         = data.terraform_remote_state.s3_artifacts.outputs.lambda_deploy_bucket_id
+  s3_key            = aws_s3_object.vehicles_lambda_jar_upload.key
+  s3_object_version = aws_s3_object.vehicles_lambda_jar_upload.version_id
+  # Handler SQS
+  handler       = var.lambda_handler_sqs
+  runtime       = var.lambda_runtime
+  memory_size   = var.lambda_memory_size_sqs # Memória SQS
+  timeout       = var.lambda_timeout_sqs     # Timeout SQS
+  architectures = ["arm64"]
+  # vpc_config { ... } # Se necessário para acesso ao RDS
+
+  environment {
+    variables = {
+      DB_HOST                = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_instance_endpoint
+      DB_PORT                = tostring(data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_instance_port)
+      DB_NAME                = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_instance_name
+      DB_USER                = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_instance_username
+      DB_PASSWORD_SECRET_ARN = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_password_secret_arn
+      # Issuer NÃO é necessário aqui (a menos que valide algo internamente)
+      # SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI = data.terraform_remote_state.cognito.outputs.cognito_user_pool_issuer
+      # Perfil Spring para SQS
+      SPRING_PROFILES_ACTIVE = "prod,sqs" # Ativa perfil 'prod' e 'sqs'
+      # Variáveis SQS/SNS SÃO necessárias aqui
+      SQS_QUEUE_VEHICLES_SALE_CREATED_NAME = data.terraform_remote_state.messaging.outputs.vehicles_sale_created_queue_name
+      SNS_TOPIC_MAIN_EVENT_BUS_ARN = data.terraform_remote_state.messaging.outputs.main_event_topic_arn
+    }
+  }
+  publish = true
+  depends_on = [
+    aws_cloudwatch_log_group.vehicles_sqs_lambda_log_group,
+    aws_iam_role_policy_attachment.vehicles_sqs_policy_attach,
+    aws_iam_role_policy_attachment.vehicles_sqs_logs_attach,
+  ]
+  tags = merge(var.project_tags, { Name = "${var.lambda_function_name_sqs}-${var.environment}" })
 }
