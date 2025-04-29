@@ -1,3 +1,5 @@
+# terraform/lambda-sales/variables.tf
+
 variable "aws_region" { default = "us-east-1" }
 variable "environment" { default = "dev" }
 variable "project_tags" {

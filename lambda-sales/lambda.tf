@@ -1,3 +1,4 @@
+# terraform/lambda-sales/lambda.tf
 resource "aws_cloudwatch_log_group" "sales_lambda_log_group" {
   name              = "/aws/lambda/${var.lambda_function_name}-${var.environment}"
   retention_in_days = 1

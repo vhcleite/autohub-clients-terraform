@@ -1,3 +1,5 @@
+# terraform/lambda-sales/s3.tf
+
 resource "aws_s3_object" "sales_lambda_jar_upload" {
   bucket = data.terraform_remote_state.s3_artifacts.outputs.lambda_deploy_bucket_id # Nome do bucket compartilhado
   key    = "${var.environment}/${var.lambda_function_name}.jar"                     # Chave específica

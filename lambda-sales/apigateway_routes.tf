@@ -1,3 +1,5 @@
+# terraform/lambda-sales/apigateway_routes.tf
+
 # Integração entre API GW compartilhado e a Lambda DESTE serviço
 resource "aws_apigatewayv2_integration" "sales_lambda_integration" {
   api_id                 = data.terraform_remote_state.api_gateway.outputs.api_gateway_id

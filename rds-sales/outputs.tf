@@ -1,3 +1,4 @@
+# terraform/rds-sales/outputs.tf
 output "sales_db_instance_endpoint" {
   description = "Endereço (hostname) da instância RDS de Vendas"
   value       = aws_db_instance.sales_db.address

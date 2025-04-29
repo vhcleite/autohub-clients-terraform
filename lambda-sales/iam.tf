@@ -1,3 +1,6 @@
+# terraform/lambda-sales/iam.tf
+
+
 # Security Group para a Lambda de Vendas (permite saída para RDS e AWS Services)
 resource "aws_security_group" "sales_lambda_sg" {
   name        = "sales_lambda_sg"

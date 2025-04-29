@@ -1,3 +1,4 @@
+# terraform/rds-sales/main.tf
 terraform {
   required_providers {
     aws = {
