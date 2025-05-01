@@ -41,7 +41,7 @@ variable "sqs_message_retention_seconds" {
 variable "charge_timeout_visibility_seconds" {
   description = "Tempo (segundos) que a msg de timeout fica invisível após ser pega pelo Lambda"
   type        = number
-  default     = 60
+  default     = 240
 }
 
 variable "charge_timeout_queue_name" {

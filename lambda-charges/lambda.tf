@@ -25,7 +25,7 @@ resource "aws_lambda_function" "charges_api_http_handler" {
   environment {
     variables = {
       # --- Configurações Comuns ---
-      SPRING_PROFILES_ACTIVE = "prod,http"    # Ativa perfis prod e http
+      SPRING_PROFILES_ACTIVE = "prod,http" # Ativa perfis prod e http
       # --- Configurações DynamoDB ---
       DYNAMODB_TABLE_CHARGES = data.terraform_remote_state.dynamodb_charges.outputs.charges_table_name
       # --- Configurações Segurança/Cognito (Se o GET /charges/sale/{id} for protegido) ---
@@ -38,9 +38,9 @@ resource "aws_lambda_function" "charges_api_http_handler" {
   }
   publish = true
   # Habilitar SnapStart para a Lambda HTTP se fizer sentido (para callbacks rápidos)
-#   snap_start {
-#     apply_on = "PublishedVersions"
-#   }
+  #   snap_start {
+  #     apply_on = "PublishedVersions"
+  #   }
   depends_on = [
     aws_cloudwatch_log_group.charges_http_lambda_log_group,
     aws_iam_role_policy_attachment.charges_http_policy_attach,
@@ -77,7 +77,7 @@ resource "aws_lambda_function" "charges_api_sqs_handler" {
   environment {
     variables = {
       # --- Configurações Comuns ---
-      SPRING_PROFILES_ACTIVE = "prod,sqs"     # Ativa perfis prod e sqs
+      SPRING_PROFILES_ACTIVE = "prod,sqs" # Ativa perfis prod e sqs
       # --- Configurações DynamoDB ---
       DYNAMODB_TABLE_CHARGES = data.terraform_remote_state.dynamodb_charges.outputs.charges_table_name
       # --- Configurações Mensageria ---
@@ -94,9 +94,9 @@ resource "aws_lambda_function" "charges_api_sqs_handler" {
   }
   publish = true
   # Habilitar SnapStart para a Lambda SQS é altamente recomendado
-#   snap_start {
-#     apply_on = "PublishedVersions"
-#   }
+  #   snap_start {
+  #     apply_on = "PublishedVersions"
+  #   }
   depends_on = [
     aws_cloudwatch_log_group.charges_sqs_lambda_log_group,
     aws_iam_role_policy_attachment.charges_sqs_policy_attach,

@@ -63,7 +63,7 @@ variable "lambda_memory_size_http" {
 variable "lambda_timeout_http" {
   description = "Timeout da Lambda HTTP (segundos)"
   type        = number
-  default     = 60 
+  default     = 60
 }
 
 variable "lambda_memory_size_sqs" {
@@ -88,12 +88,12 @@ variable "lambda_handler_http" {
   description = "Handler da função Lambda HTTP (usando aws-serverless-java-container)"
   type        = string
   # Mantém o handler que você já tinha e funcionava para HTTP
-  default     = "com.fiap.autohub.autohub_vehicles_api.application.config.StreamLambdaHandler"
+  default = "com.fiap.autohub.autohub_vehicles_api.application.config.StreamLambdaHandler"
 }
 
 variable "lambda_handler_sqs" {
   description = "Handler da função Lambda SQS (usando RequestHandler ou FunctionInvoker)"
   type        = string
   # Handler que criaremos para SQS
-  default     = "org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"
+  default = "org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"
 }

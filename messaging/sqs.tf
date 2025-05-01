@@ -58,7 +58,7 @@ resource "aws_sqs_queue" "event_dlqs" {
 resource "aws_sqs_queue" "event_queues" {
   for_each                   = local.event_queues
   name                       = "${each.value}_Queue-${var.environment}"
-  visibility_timeout_seconds = 60                                # Ajuste por fila se necessário
+  visibility_timeout_seconds = 120                                # Ajuste por fila se necessário
   message_retention_seconds  = var.sqs_message_retention_seconds # Padrão 4 dias
 
   redrive_policy = jsonencode({

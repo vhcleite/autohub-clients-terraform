@@ -37,7 +37,7 @@ resource "aws_iam_role_policy_attachment" "vehicles_http_policy_attach" {
 }
 
 resource "aws_iam_role_policy_attachment" "vehicles_http_logs_attach" {
-  role       = aws_iam_role.vehicles_http_exec_role.name
+  role = aws_iam_role.vehicles_http_exec_role.name
   # Política básica de logs (mantém)
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
@@ -77,9 +77,9 @@ resource "aws_iam_policy" "vehicles_sqs_policy" {
       },
       {
         # Sid atualizado (sem underscore)
-        Sid      = "AllowSqsConsumeVehiclesSaleCreatedSQS",
-        Effect   = "Allow",
-        Action   = [
+        Sid    = "AllowSqsConsumeVehiclesSaleCreatedSQS",
+        Effect = "Allow",
+        Action = [
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
@@ -97,7 +97,7 @@ resource "aws_iam_role_policy_attachment" "vehicles_sqs_policy_attach" {
 }
 
 resource "aws_iam_role_policy_attachment" "vehicles_sqs_logs_attach" {
-  role       = aws_iam_role.vehicles_sqs_exec_role.name
+  role = aws_iam_role.vehicles_sqs_exec_role.name
   # Política básica de logs (mantém)
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
