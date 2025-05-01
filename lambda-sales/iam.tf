@@ -1,95 +1,96 @@
 # terraform/lambda-sales/iam.tf
-
-
-# Security Group para a Lambda de Vendas (permite saída para RDS e AWS Services)
-resource "aws_security_group" "sales_lambda_sg" {
-  name        = "sales_lambda_sg"
-  description = "Allow lambda egress for Sales API"
-  vpc_id      = var.vpc_id
-
-  # Permite toda saída - pode restringir mais se necessário
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+# --- Role e Policy para Lambda HTTP ---
+resource "aws_iam_role" "sales_http_exec_role" {
+  name = "${var.lambda_function_name_http}-${var.environment}-exec-role"
+  assume_role_policy = jsonencode({
+    Version   = "2012-10-17",
+    Statement = [{ Action = "sts:AssumeRole", Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" } }]
+  })
   tags = merge(
-    var.project_tags,
-    {
-      Name = "sales_lambda_sg"
-    }
+    var.project_tags, { Service = var.lambda_function_name_http }, # Tag de serviço específica
+    { Name = "${var.lambda_function_name_http}-${var.environment}-exec-role" }
   )
 }
 
-
-# Role IAM para a Lambda de Vendas
-resource "aws_iam_role" "sales_lambda_exec_role" {
-  name = "${var.lambda_function_name}-${var.environment}-exec-role"
-  assume_role_policy = jsonencode({
+resource "aws_iam_policy" "sales_http_policy" {
+  name = "${var.lambda_function_name_http}-${var.environment}-policy"
+  policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-      {
-        Action = "sts:AssumeRole",
-        Effect = "Allow",
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
+      { # Permissão Secrets Manager para senha do DB
+        Sid      = "AllowSecretManagerReadSalesDB",
+        Effect   = "Allow",
+        Action   = "secretsmanager:GetSecretValue",
+        Resource = data.terraform_remote_state.rds_sales.outputs.sales_db_password_secret_arn
+      },
+      { # Permissão para publicar no Tópico SNS (necessário para POST /sales)
+        Sid      = "AllowSnsPublishToMainBusHttp",
+        Effect   = "Allow",
+        Action   = "sns:Publish",
+        Resource = data.terraform_remote_state.messaging.outputs.main_event_topic_arn
       }
+      # Não precisa de permissões SQS aqui
     ]
   })
+}
+
+resource "aws_iam_role_policy_attachment" "sales_http_policy_attach" {
+  role       = aws_iam_role.sales_http_exec_role.name
+  policy_arn = aws_iam_policy.sales_http_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "sales_http_logs_attach" {
+  role       = aws_iam_role.sales_http_exec_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# --- Role e Policy para Lambda SQS ---
+resource "aws_iam_role" "sales_sqs_exec_role" {
+  name = "${var.lambda_function_name_sqs}-${var.environment}-exec-role"
+  assume_role_policy = jsonencode({
+    Version   = "2012-10-17",
+    Statement = [{ Action = "sts:AssumeRole", Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" } }]
+  })
   tags = merge(
-    var.project_tags,
-    {
-      Name        = "${var.lambda_function_name}-${var.environment}-exec-role"
-      Environment = var.environment
-    }
+    var.project_tags, { Service = var.lambda_function_name_sqs }, # Tag de serviço específica
+    { Name = "${var.lambda_function_name_sqs}-${var.environment}-exec-role" }
   )
 }
 
-# Política IAM Customizada
-resource "aws_iam_policy" "sales_lambda_policy" {
-  name = "${var.lambda_function_name}-${var.environment}-policy"
+resource "aws_iam_policy" "sales_sqs_policy" {
+  name = "${var.lambda_function_name_sqs}-${var.environment}-policy"
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [
-      { # Permissão para ler a senha do DB do Secrets Manager
-        Sid      = "AllowSecretManagerRead"
-        Effect   = "Allow"
-        Action   = "secretsmanager:GetSecretValue"
-        Resource = data.terraform_remote_state.rds_sales.outputs.sales_db_password_secret_arn # ARN do Secret
+      { # Permissão Secrets Manager para senha do DB (listener pode precisar)
+        Sid      = "AllowSecretManagerReadSalesDBSQS",
+        Effect   = "Allow",
+        Action   = "secretsmanager:GetSecretValue",
+        Resource = data.terraform_remote_state.rds_sales.outputs.sales_db_password_secret_arn
       },
-      # { # Permissão para publicar no SNS/EventBridge
-      #   Sid      = "AllowEventPublish"
-      #   Effect   = "Allow"
-      #   Action   = ["events:PutEvents", "sns:Publish"]
-      #   Resource = [data.terraform_remote_state.messaging.outputs.event_bus_arn] # ARN do Barramento/Tópico
-      # },
-      { # Permissões de Rede para VPC Lambda (se rodar em VPC)
-        Sid    = "AllowVPCAccess",
-        Effect = "Allow",
-        Action = [
-          "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface"
+      { # Permissões SQS para consumir da fila de eventos da Sales API
+        Sid      = "AllowSqsConsumeSalesEvents",
+        Effect   = "Allow",
+        Action   = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl" # Necessário para resolver atributos
         ],
-        Resource = "*" # Necessário para criar ENIs na VPC
+        # IMPORTANTE: Use a chave correta do mapa de ARNs exportado pelo módulo messaging
+        Resource = data.terraform_remote_state.messaging.outputs.event_queues_arns["sales_on_events"]
       }
+      # Não precisa de permissão SNS:Publish aqui (a menos que o listener precise publicar algo)
     ]
   })
 }
 
-# Anexar Policies à Role
-resource "aws_iam_role_policy_attachment" "sales_lambda_policy_attach" {
-  role       = aws_iam_role.sales_lambda_exec_role.name
-  policy_arn = aws_iam_policy.sales_lambda_policy.arn
+resource "aws_iam_role_policy_attachment" "sales_sqs_policy_attach" {
+  role       = aws_iam_role.sales_sqs_exec_role.name
+  policy_arn = aws_iam_policy.sales_sqs_policy.arn
 }
-resource "aws_iam_role_policy_attachment" "sales_lambda_logs_attach" {
-  role       = aws_iam_role.sales_lambda_exec_role.name
+
+resource "aws_iam_role_policy_attachment" "sales_sqs_logs_attach" {
+  role       = aws_iam_role.sales_sqs_exec_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-# Anexar política para acesso à VPC (se rodar em VPC)
-resource "aws_iam_role_policy_attachment" "sales_lambda_vpc_attach" {
-  role       = aws_iam_role.sales_lambda_exec_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }

@@ -1,5 +1,3 @@
-# terraform/rds-sales/variables.tf
-
 variable "aws_region" {
   description = "Região AWS"
   type        = string
@@ -59,22 +57,12 @@ variable "sales_db_username" {
   default     = "salesadmin"
 }
 
-variable "vpc_private_subnet_ids" {
-  description = "Lista de IDs das subnets PRIVADAS onde o RDS será criado (precisa de pelo menos 2 AZs diferentes para subnet group)"
+variable "vpc_subnet_ids" {
+  description = "Lista de IDs das subnets onde o RDS será criado (públicas ou privadas, dependendo da estratégia de acesso)"
   type        = list(string)
-  # Não há default aqui, você PRECISA passar isso via .tfvars ou -var
-  # Ex: -var='vpc_private_subnet_ids=["subnet-abc", "subnet-def"]'
-}
-
-variable "lambda_security_group_id" {
-  description = "ID do Security Group associado à Lambda da Sales API (para permitir acesso ao DB)"
-  type        = string
-  # Não há default, será lido do remote state do lambda-sales ou passado como var
-  # Este não é usado diretamente aqui, mas o SG do DB usará para regra de entrada
 }
 
 variable "vpc_id" {
-  description = "ID da VPC onde os recursos serão criados"
+  description = "ID da VPC onde os recursos de rede (SG, Subnet Group) serão criados"
   type        = string
-  # Não há default, precisa ser fornecido ou lido de outro state/data source
 }
