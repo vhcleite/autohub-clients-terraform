@@ -21,7 +21,6 @@ output "charge_timeout_dlq_arn" {
 
 
 # --- Outputs das Filas de Eventos (Gerados com for_each) ---
-# Exporta um mapa contendo ARN e URL para cada fila principal de evento
 output "event_queues_arns" {
   description = "Mapa com os ARNs das filas SQS principais de eventos (chave = nome lógico)"
   value       = { for k, queue in aws_sqs_queue.event_queues : k => queue.arn }
@@ -31,13 +30,16 @@ output "event_queues_urls" {
   value       = { for k, queue in aws_sqs_queue.event_queues : k => queue.id }
 }
 
-# Exporta um mapa contendo os ARNs das DLQs de eventos
 output "event_dlqs_arns" {
   description = "Mapa com os ARNs das DLQs de eventos (chave = nome lógico)"
   value       = { for k, dlq in aws_sqs_queue.event_dlqs : k => dlq.arn }
 }
 
-output "vehicles_sale_created_queue_name" {
-  description = "Nome da fila SQS para a Vehicles API processar SaleCreated"
-  value = element(split(":", aws_sqs_queue.event_queues["vehicles_on_sale_created"].arn), 5)
+# REMOVIDO: output "vehicles_sale_created_queue_name"
+
+# Adicionar output para o nome da fila unificada (se necessário)
+output "vehicles_events_queue_name" {
+  description = "Nome da fila SQS unificada para a Vehicles API"
+  value       = aws_sqs_queue.event_queues["vehicles_events"].name
 }
+

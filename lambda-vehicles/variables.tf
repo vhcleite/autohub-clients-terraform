@@ -17,21 +17,22 @@ variable "project_tags" {
   type        = map(string)
   default = {
     Project   = "AutoHub"
-    Service   = "VehiclesApi"
+    Service   = "VehiclesApi" # Tag genérica para o serviço
     ManagedBy = "Terraform"
   }
 }
 
+# --- Variáveis para Lambda HTTP ---
 variable "lambda_function_name_http" {
   description = "Nome base para a função Lambda da API HTTP de Veículos"
   type        = string
-  default     = "AutoHubVehiclesApiHttp" # Novo nome base
+  default     = "AutoHubVehiclesApiHttp"
 }
 
-variable "lambda_function_name_sqs" {
-  description = "Nome base para a função Lambda do Listener SQS de Veículos"
+variable "lambda_handler_http" {
+  description = "Handler da função Lambda HTTP"
   type        = string
-  default     = "AutoHubVehiclesApiSqs" # Novo nome base
+  default     = "com.fiap.autohub.autohub_vehicles_api.application.config.StreamLambdaHandler"
 }
 
 variable "lambda_function_name" {
@@ -40,21 +41,6 @@ variable "lambda_function_name" {
   default     = "AutoHubVehiclesApi"
 }
 
-variable "lambda_jar_path" {
-  description = "OBRIGATÓRIO: Caminho para o JAR da API de Veículos"
-  type        = string
-}
-
-# Variáveis para conexão com estados remotos
-variable "terraform_state_bucket" {
-  description = "Bucket com o tf state"
-  type        = string
-  default     = "vhc-terraform-state-autohub-clients-v1"
-}
-
-# Variáveis de configuração da Lambda
-
-# Variáveis de memória/timeout podem ser específicas se necessário
 variable "lambda_memory_size_http" {
   description = "Memória para a Lambda HTTP (MB)"
   type        = number
@@ -66,16 +52,34 @@ variable "lambda_timeout_http" {
   default     = 60
 }
 
+# --- Variáveis para Lambda SQS (ÚNICA) ---
+variable "lambda_function_name_sqs" {
+  description = "Nome base para a função Lambda do Listener SQS de Veículos"
+  type        = string
+  default     = "AutoHubVehiclesApiSqs"
+}
+
+variable "lambda_handler_sqs" {
+  description = "Handler da função Lambda SQS (usando FunctionInvoker)"
+  type        = string
+  default     = "org.springframework.cloud.function.adapter.aws.FunctionInvoker"
+}
+
 variable "lambda_memory_size_sqs" {
   description = "Memória para a Lambda SQS (MB)"
   type        = number
   default     = 1024
 }
-
 variable "lambda_timeout_sqs" {
-  description = "Timeout da Lambda SQS (segundos) - Deve ser maior que o visibility timeout da fila"
+  description = "Timeout da Lambda SQS (segundos) - Deve ser >= Queue Visibility Timeout"
   type        = number
-  default     = 60
+  default     = 130 # Ajustado para corresponder ao timeout da fila no messaging/sqs.tf
+}
+
+# --- Variáveis Comuns ---
+variable "lambda_jar_path" {
+  description = "OBRIGATÓRIO: Caminho para o JAR da API de Veículos (Fat JAR)"
+  type        = string
 }
 
 variable "lambda_runtime" {
@@ -84,16 +88,15 @@ variable "lambda_runtime" {
   default     = "java21"
 }
 
-variable "lambda_handler_http" {
-  description = "Handler da função Lambda HTTP (usando aws-serverless-java-container)"
+variable "terraform_state_bucket" {
+  description = "Bucket S3 com os estados remotos do Terraform"
   type        = string
-  # Mantém o handler que você já tinha e funcionava para HTTP
-  default = "com.fiap.autohub.autohub_vehicles_api.application.config.StreamLambdaHandler"
+  default     = "vhc-terraform-state-autohub-clients-v1"
 }
 
-variable "lambda_handler_sqs" {
-  description = "Handler da função Lambda SQS (usando RequestHandler ou FunctionInvoker)"
+variable "terraform_state_lock_table" {
+  description = "Tabela DynamoDB para lock do estado Terraform"
   type        = string
-  # Handler que criaremos para SQS
-  default = "org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"
+  default     = "TerraformStateLockAutoHub"
 }
+
