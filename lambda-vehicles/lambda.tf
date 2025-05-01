@@ -33,7 +33,7 @@ resource "aws_lambda_function" "vehicles_api_http_handler" {
       DB_USER                = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_instance_username
       DB_PASSWORD_SECRET_ARN = data.terraform_remote_state.rds_vehicles.outputs.vehicles_db_password_secret_arn
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI = data.terraform_remote_state.cognito.outputs.cognito_user_pool_issuer
-      # SNS_TOPIC_MAIN_EVENT_BUS_ARN = data.terraform_remote_state.messaging.outputs.main_event_topic_arn # Não publica SNS diretamente
+      SNS_TOPIC_MAIN_EVENT_BUS_ARN = data.terraform_remote_state.messaging.outputs.main_event_topic_arn 
     }
   }
   publish = true

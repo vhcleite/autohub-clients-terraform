@@ -44,9 +44,7 @@ resource "aws_lambda_function" "sales_api_http_handler" {
     }
   }
   publish = true
-  snap_start {
-    apply_on = "PublishedVersions" 
-  }
+  
   depends_on = [
     aws_cloudwatch_log_group.sales_http_lambda_log_group,
     aws_iam_role_policy_attachment.sales_http_policy_attach,
@@ -103,9 +101,7 @@ resource "aws_lambda_function" "sales_api_sqs_handler" {
     }
   }
   publish = true
-  snap_start {
-    apply_on = "PublishedVersions" 
-  }
+  
   depends_on = [
     aws_cloudwatch_log_group.sales_sqs_lambda_log_group,
     aws_iam_role_policy_attachment.sales_sqs_policy_attach,
